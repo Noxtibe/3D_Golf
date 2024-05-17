@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Fichiers sources">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Fichiers d%27en-tête">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Fichiers de ressources">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="fonts">
+      <UniqueIdentifier>{0bcb3d5d-20d3-40bd-a6d1-c3e5ff5843d8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
+    <ClCompile Include="sphere.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
+    <ClCompile Include="renderer.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sphere.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+    <ClInclude Include="renderer.h">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fragment_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="vertex_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="text_vertex_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="text_fragment_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="circle_fragment_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="circle_vertex_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="cursor_vertex_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="cursor_fragment_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="gauge_vertex_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="gauge_fragment_shader.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="fonts\arial.ttf">
+      <Filter>fonts</Filter>
+    </Font>
+  </ItemGroup>
+</Project>
