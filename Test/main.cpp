@@ -13,15 +13,15 @@ GLFWwindow* window;
 float angleX = 0.0f;
 float angleY = 0.0f;
 float zoom = 5.0f;
-double lastX = 400.0; // Initialiser au centre de la fenêtre
-double lastY = 300.0; // Initialiser au centre de la fenêtre
-const float sensitivity = 0.005f; // Sensibilité de la souris réduite
+double lastX = 400.0;
+double lastY = 300.0;
+const float sensitivity = 0.005f; // Mouse sensitivity
 
 GLuint sphereVAO, sphereVBO, groundVAO, groundVBO, wallVAO, wallVBO;
 GLuint cylinderVAO, cylinderVBO, cylinderEBO;
 GLuint circleVAO, circleVBO;
-GLuint powerGaugeVAO, powerGaugeVBO; // Ajoutez ces lignes
-GLuint shaderProgram, circleShaderProgram, gaugeShaderProgram; // Ajoutez `gaugeShaderProgram`
+GLuint powerGaugeVAO, powerGaugeVBO;
+GLuint shaderProgram, circleShaderProgram, gaugeShaderProgram; // Shaders
 
 const int sectorCount = 36;
 const int stackCount = 18;
@@ -29,7 +29,7 @@ const float radius = 0.6f;
 const float dampingFactor = 0.8f;
 const float gravity = 0.005f;
 const float minBounceSpeed = 0.035f;
-const float friction = 0.995f; // Facteur de friction
+const float friction = 0.995f; // Friction
 
 double keyPressDuration = 0.0;
 const double maxKeyPressDuration = 3.0;
@@ -38,7 +38,7 @@ double lastTime = glfwGetTime();
 double endTime = 0.0;
 bool showEndText = false;
 
-glm::vec3 initialSpherePosition(0.0f, radius, 0.0f); // Position initiale sur le sol
+glm::vec3 initialSpherePosition(0.0f, radius, 0.0f); // Initial position on the ground
 glm::vec3 spherePosition = initialSpherePosition;
 glm::vec3 sphereVelocity(0.0f, 0.0f, 0.0f);
 
@@ -48,8 +48,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
     double deltaX = xpos - lastX;
     double deltaY = ypos - lastY;
-    angleY += deltaX * sensitivity; // Utiliser la sensibilité
-    angleX += deltaY * sensitivity; // Utiliser la sensibilité
+    angleY += deltaX * sensitivity;
+    angleX += deltaY * sensitivity;
     lastX = xpos;
     lastY = ypos;
 
@@ -82,7 +82,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
             glm::vec3 cameraDirection(
                 -cos(angleX) * sin(angleY),
-                0.0f, // Assurez-vous que la composante y est 0 pour éviter de projeter la balle en l'air
+                0.0f, // 1 to project the ball in the air, 0 to ground
                 -cos(angleX) * cos(angleY)
             );
 
@@ -160,7 +160,7 @@ void setupGround()
     glGenBuffers(1, &groundVBO);
     glBindBuffer(GL_ARRAY_BUFFER, groundVBO);
 
-    // Terrain de golf élargi
+    // Terrain
     GLfloat groundVertices[] =
     {
         -5.5f, 0.0f, -5.0f,   0.0f, 1.0f, 0.0f,
@@ -188,16 +188,16 @@ void setupWalls()
     glGenBuffers(1, &wallVBO);
     glBindBuffer(GL_ARRAY_BUFFER, wallVBO);
 
-    // Murets autour du terrain élargi
+    // Walls around
     GLfloat wallVertices[] =
     {
-        // Murets de gauche
+        // Walls left
         -5.5f, 0.0f, -5.0f,   0.5f, 0.5f, 0.5f,
         -5.5f, 2.0f, -5.0f,   0.5f, 0.5f, 0.5f,
         -5.5f, 2.0f, 50.0f,   0.5f, 0.5f, 0.5f,
         -5.5f, 0.0f, 50.0f,   0.5f, 0.5f, 0.5f,
 
-        // Murets de droite
+        // Walls right
          5.5f, 0.0f, -5.0f,   0.5f, 0.5f, 0.5f,
          5.5f, 2.0f, -5.0f,   0.5f, 0.5f, 0.5f,
          5.5f, 2.0f, 50.0f,   0.5f, 0.5f, 0.5f,
@@ -224,13 +224,13 @@ void setupCircle()
     glBindBuffer(GL_ARRAY_BUFFER, circleVBO);
 
     const int circleSegments = 36;
-    const float circleRadius = 1.2f; // Agrandir le cercle
+    const float circleRadius = 1.2f;
 
     std::vector<GLfloat> circleVertices;
 
-    // Centre du cercle
+    // Circle center
     circleVertices.push_back(0.0f);
-    circleVertices.push_back(0.0f); // Légèrement au-dessus du sol
+    circleVertices.push_back(0.0f);
     circleVertices.push_back(0.0f);
 
     for (int i = 0; i <= circleSegments; ++i)
@@ -240,7 +240,7 @@ void setupCircle()
         float z = circleRadius * sinf(angle);
 
         circleVertices.push_back(x);
-        circleVertices.push_back(0.0f); // Légèrement au-dessus du sol
+        circleVertices.push_back(0.0f);
         circleVertices.push_back(z);
     }
 
@@ -285,25 +285,24 @@ void setupPowerGauge()
 void setupCylinder()
 {
     const int cylinderSegments = 36;
-    const float cylinderRadius = 0.1f; // Rayon fin du poteau
-    const float cylinderHeight = 7.0f; // Longueur du poteau
+    const float cylinderRadius = 0.1f;
+    const float cylinderHeight = 7.0f;
 
     std::vector<GLfloat> cylinderVertices;
     std::vector<GLuint> cylinderIndices;
 
-    // Ajouter les sommets et indices pour le cylindre
     for (int i = 0; i <= cylinderSegments; ++i)
     {
         float angle = i * 2 * glm::pi<float>() / cylinderSegments;
         float x = cylinderRadius * cosf(angle);
         float z = cylinderRadius * sinf(angle);
 
-        // Base inférieure
+        // Inferior base
         cylinderVertices.push_back(x);
         cylinderVertices.push_back(0.0f);
         cylinderVertices.push_back(z);
 
-        // Base supérieure
+        // Superior base
         cylinderVertices.push_back(x);
         cylinderVertices.push_back(cylinderHeight);
         cylinderVertices.push_back(z);
@@ -461,11 +460,11 @@ bool init()
     setupWalls();
     setupCylinder();
     setupCircle();
-    setupPowerGauge(); // Initialisez la jauge de puissance
+    setupPowerGauge();
 
     shaderProgram = loadShaders("vertex_shader.glsl", "fragment_shader.glsl");
     circleShaderProgram = loadShaders("circle_vertex_shader.glsl", "circle_fragment_shader.glsl");
-    gaugeShaderProgram = loadShaders("gauge_vertex_shader.glsl", "gauge_fragment_shader.glsl"); // Chargez le shader de la jauge
+    gaugeShaderProgram = loadShaders("gauge_vertex_shader.glsl", "gauge_fragment_shader.glsl");
 
     return true;
 }
@@ -539,10 +538,9 @@ void drawSphere()
 
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
 
-    // Décalage vers le bas pour la caméra
     glm::vec3 cameraPosition = spherePosition + glm::vec3(
         zoom * cos(angleX) * sin(angleY),
-        zoom * sin(angleX) - .0f,  // Décalage vers le bas
+        zoom * sin(angleX) - .0f,
         zoom * cos(angleX) * cos(angleY)
     );
     glm::mat4 view = glm::lookAt(cameraPosition, spherePosition, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -589,7 +587,7 @@ void drawGround()
 
     glm::vec3 cameraPosition = spherePosition + glm::vec3(
         zoom * cos(angleX) * sin(angleY),
-        zoom * sin(angleX) + 2.0f, // Déplacez la caméra pour que la balle ne soit pas au centre de l'écran
+        zoom * sin(angleX) + 2.0f,
         zoom * cos(angleX) * cos(angleY)
     );
     glm::mat4 view = glm::lookAt(cameraPosition, spherePosition, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -599,7 +597,7 @@ void drawGround()
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(groundVAO);
-    glDrawArrays(GL_QUADS, 0, 4); // Mettre à jour pour dessiner la nouvelle section
+    glDrawArrays(GL_QUADS, 0, 4);
     glBindVertexArray(0);
 
     glUseProgram(0);
@@ -618,7 +616,7 @@ void drawWalls()
 
     glm::vec3 cameraPosition = spherePosition + glm::vec3(
         zoom * cos(angleX) * sin(angleY),
-        zoom * sin(angleX) + 2.0f, // Déplacez la caméra pour que la balle ne soit pas au centre de l'écran
+        zoom * sin(angleX) + 2.0f,
         zoom * cos(angleX) * cos(angleY)
     );
     glm::mat4 view = glm::lookAt(cameraPosition, spherePosition, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -628,7 +626,7 @@ void drawWalls()
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(wallVAO);
-    glDrawArrays(GL_QUADS, 0, 8); // Dessiner les murets
+    glDrawArrays(GL_QUADS, 0, 8);
     glBindVertexArray(0);
 
     glUseProgram(0);
@@ -639,7 +637,7 @@ void drawCircle()
     glUseProgram(circleShaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 0.02f, 50.0f)); // Positionner le cercle légèrement au-dessus du sol
+    model = glm::translate(model, glm::vec3(0.0f, 0.02f, 50.0f)); // Circle slightly up compare to ground
 
     GLuint modelLoc = glGetUniformLocation(circleShaderProgram, "model");
     GLuint viewLoc = glGetUniformLocation(circleShaderProgram, "view");
@@ -649,7 +647,7 @@ void drawCircle()
 
     glm::vec3 cameraPosition = spherePosition + glm::vec3(
         zoom * cos(angleX) * sin(angleY),
-        zoom * sin(angleX) + 2.0f, // Déplacez la caméra pour que la balle ne soit pas au centre de l'écran
+        zoom * sin(angleX) + 2.0f,
         zoom * cos(angleX) * cos(angleY)
     );
     glm::mat4 view = glm::lookAt(cameraPosition, spherePosition, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -659,7 +657,7 @@ void drawCircle()
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(circleVAO);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 38); // Dessiner le cercle rempli
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 38);
     glBindVertexArray(0);
 
     glUseProgram(0);
@@ -670,7 +668,7 @@ void drawCylinder()
     glUseProgram(shaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 50.0f)); // Positionner le cylindre au milieu du cercle
+    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 50.0f)); // Position cylinder in the center of circle
 
     GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
     GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
@@ -680,7 +678,7 @@ void drawCylinder()
 
     glm::vec3 cameraPosition = spherePosition + glm::vec3(
         zoom * cos(angleX) * sin(angleY),
-        zoom * sin(angleX) + 2.0f, // Déplacez la caméra pour que la balle ne soit pas au centre de l'écran
+        zoom * sin(angleX) + 2.0f,
         zoom * cos(angleX) * cos(angleY)
     );
     glm::mat4 view = glm::lookAt(cameraPosition, spherePosition, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -690,7 +688,7 @@ void drawCylinder()
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(cylinderVAO);
-    glDrawElements(GL_TRIANGLES, 36 * 6, GL_UNSIGNED_INT, 0); // Dessiner le cylindre
+    glDrawElements(GL_TRIANGLES, 36 * 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
     glUseProgram(0);
@@ -698,13 +696,13 @@ void drawCylinder()
 
 bool checkHoleCollision()
 {
-    const float holeRadius = 1.5f; // Agrandir le trou
-    glm::vec3 holePosition(0.0f, 0.0f, 50.0f); // Positionner le trou à la fin du terrain
+    const float holeRadius = 1.5f;
+    glm::vec3 holePosition(0.0f, 0.0f, 50.0f);
 
     float distance = glm::distance(spherePosition, holePosition);
     if (distance < holeRadius)
     {
-        std::cout << "Parcours termine !" << std::endl; // Ligne de debug
+        std::cout << "Parcours termine !" << std::endl;
         return true;
     }
     return false;
@@ -716,14 +714,14 @@ void draw()
 
     drawGround();
     drawWalls();
-    drawCircle(); // Ajouter le dessin du cercle
-    drawCylinder(); // Ajouter le dessin du cylindre
+    drawCircle();
+    drawCylinder();
 
     spherePosition.y += sphereVelocity.y;
     spherePosition.x += sphereVelocity.x;
     spherePosition.z += sphereVelocity.z;
 
-    sphereVelocity *= friction; // Appliquer la friction
+    sphereVelocity *= friction; // Apply friction
 
     sphereVelocity.y -= gravity;
 
@@ -773,7 +771,7 @@ void draw()
     }
 
     drawSphere();
-    drawPowerGauge(); // Dessiner la jauge de puissance
+    drawPowerGauge();
 
     if (showEndText && glfwGetTime() - endTime > 3.0) // Wait for 3 seconds
     {
