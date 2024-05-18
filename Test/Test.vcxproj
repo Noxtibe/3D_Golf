@@ -155,9 +155,6 @@
     <None Include="vertex_shader.glsl" />
     <None Include="fragment_shader.glsl" />
   </ItemGroup>
-  <ItemGroup>
-    <Font Include="fonts\arial.ttf" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

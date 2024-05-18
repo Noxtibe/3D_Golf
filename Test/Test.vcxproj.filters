@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="fonts">
-      <UniqueIdentifier>{0bcb3d5d-20d3-40bd-a6d1-c3e5ff5843d8}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -67,10 +64,5 @@
     <None Include="gauge_fragment_shader.glsl">
       <Filter>Fichiers sources</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Font Include="fonts\arial.ttf">
-      <Filter>fonts</Filter>
-    </Font>
   </ItemGroup>
 </Project>
