@@ -21,6 +21,7 @@ GLuint sphereVAO, sphereVBO, groundVAO, groundVBO, wallVAO, wallVBO;
 GLuint cylinderVAO, cylinderVBO, cylinderEBO;
 GLuint circleVAO, circleVBO;
 GLuint powerGaugeVAO, powerGaugeVBO;
+GLuint flagVAO, flagVBO;
 GLuint shaderProgram, circleShaderProgram, gaugeShaderProgram; // Shaders
 
 const int sectorCount = 36;
@@ -30,26 +31,38 @@ const float dampingFactor = 0.8f;
 const float gravity = 0.005f;
 const float minBounceSpeed = 0.001f;
 const float friction = 0.995f; // Friction
-const int subSteps = 10; // Nombre de sous-étapes pour la simulation
+const int subSteps = 10; // Number of sub-steps for simulation
 
 double keyPressDuration = 0.0;
 const double maxKeyPressDuration = 3.0;
 const float maxImpulseStrength = 2.0f;
+double lastShotTime = -2.0; // Initialize to -2 to allow the first shot immediately
+const double shotCooldown = 2.0; // Cooldown time in seconds
 double lastTime = glfwGetTime();
 double endTime = 0.0;
 bool showEndText = false;
+
+const int maxTrailLength = 50; // Maximum length of the trail
+std::vector<glm::vec3> trailPositions; // Vector to store trail positions
+
+const double levelTransitionDelay = 0.0; // Delay before transitioning to the next level
+bool levelTransition = false; // Flag to indicate level transition
+
 
 glm::vec3 initialSpherePosition(0.0f, radius, 0.0f); // Initial position on the ground
 glm::vec3 spherePosition = initialSpherePosition;
 glm::vec3 sphereVelocity(0.0f, 0.0f, 0.0f);
 
 bool cursorLocked = true;
+int currentCourse = 0; // Variable to keep track of the current course
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
     glViewport(0, 0, width, height);
 }
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
     double deltaX = xpos - lastX;
     double deltaY = ypos - lastY;
     angleY += deltaX * sensitivity;
@@ -63,7 +76,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
         angleX = glm::radians(-89.0f);
 }
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
     zoom -= yoffset * 0.5f;
     if (zoom < 1.0f)
         zoom = 1.0f;
@@ -71,38 +85,50 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
         zoom = 20.0f;
 }
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_E) {
-        if (action == GLFW_PRESS) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_E)
+    {
+        double currentTime = glfwGetTime();
+        if (action == GLFW_PRESS)
+        {
             keyPressDuration = 0.0;
         }
-        else if (action == GLFW_RELEASE) {
-            float impulseStrength = glm::clamp(static_cast<float>(keyPressDuration / maxKeyPressDuration) * maxImpulseStrength, 0.0f, maxImpulseStrength);
+        else if (action == GLFW_RELEASE)
+        {
+            if (currentTime - lastShotTime >= shotCooldown)
+            {
+                float impulseStrength = glm::clamp(static_cast<float>(keyPressDuration / maxKeyPressDuration) * maxImpulseStrength, 0.0f, maxImpulseStrength);
 
-            glm::vec3 cameraDirection(
-                -cos(angleX) * sin(angleY),
-                0.0f, // 1 to project the ball in the air, 0 to ground
-                -cos(angleX) * cos(angleY)
-            );
+                glm::vec3 cameraDirection(
+                    -cos(angleX) * sin(angleY),
+                    0.0f, // 1 to project the ball in the air, 0 to ground
+                    -cos(angleX) * cos(angleY)
+                );
 
-            cameraDirection = glm::normalize(cameraDirection);
+                cameraDirection = glm::normalize(cameraDirection);
 
-            sphereVelocity += cameraDirection * impulseStrength;
-            keyPressDuration = 0.0; // Reset the keyPressDuration when the key is released
+                sphereVelocity += cameraDirection * impulseStrength;
+                keyPressDuration = 0.0; // Reset the keyPressDuration when the key is released
+                lastShotTime = currentTime; // Update the last shot time
+            }
         }
     }
-    else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+    else if (key == GLFW_KEY_R && action == GLFW_PRESS)
+    {
         spherePosition = initialSpherePosition;
         sphereVelocity = glm::vec3(0.0f, 0.0f, 0.0f);
         showEndText = false;
     }
-    else if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+    else if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    {
         cursorLocked = !cursorLocked;
         glfwSetInputMode(window, GLFW_CURSOR, cursorLocked ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     }
 }
 
-void setupSphere() {
+void setupSphere()
+{
     glGenVertexArrays(1, &sphereVAO);
     glBindVertexArray(sphereVAO);
 
@@ -111,12 +137,14 @@ void setupSphere() {
 
     std::vector<GLfloat> sphereVertices;
     std::vector<GLfloat> sphereColors;
-    for (int i = 0; i <= stackCount; ++i) {
+    for (int i = 0; i <= stackCount; ++i)
+    {
         float stackAngle = glm::pi<float>() / 2 - i * glm::pi<float>() / stackCount;
         float xy = radius * cosf(stackAngle);
         float z = radius * sinf(stackAngle);
         float y = 1.0f;
-        for (int j = 0; j <= sectorCount; ++j) {
+        for (int j = 0; j <= sectorCount; ++j)
+        {
             float sectorAngle = j * 2 * glm::pi<float>() / sectorCount;
             float x = xy * cosf(sectorAngle);
             y = xy * sinf(sectorAngle) + 0.0f;
@@ -146,28 +174,42 @@ void setupSphere() {
     glBindVertexArray(0);
 }
 
-void setupGround() {
+void setupGround()
+{
     glGenVertexArrays(1, &groundVAO);
     glBindVertexArray(groundVAO);
 
     glGenBuffers(1, &groundVBO);
     glBindBuffer(GL_ARRAY_BUFFER, groundVBO);
 
-    // Terrain en forme de L allongé
-    GLfloat groundVertices[] = {
-        // Section principale
-        -5.5f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f,
-        -5.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
-        5.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
-        5.5f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f,
-        // Section ajoutée pour former le L allongé
-        5.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
-        15.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
-        15.5f, 0.0f, 20.0f, 0.0f, 1.0f, 0.0f,
-        5.5f, 0.0f, 20.0f, 0.0f, 1.0f, 0.0f
+    // Define ground vertices for multiple courses
+    std::vector<std::vector<GLfloat>> groundVertices = {
+        // Course 1
+        {
+            -5.5f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f,
+            -5.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
+            5.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
+            5.5f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f,
+            -5.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
+            65.5f, 0.0f, 50.0f, 0.0f, 1.0f, 0.0f,
+            65.5f, 0.0f, 65.0f, 0.0f, 1.0f, 0.0f,
+            -5.5f, 0.0f, 65.0f, 0.0f, 1.0f, 0.0f
+        },
+        // Course 2
+        {
+            -10.0f, 0.0f, -10.0f, 0.0f, 1.0f, 0.0f,
+            -10.0f, 0.0f, 30.0f, 0.0f, 1.0f, 0.0f,
+            10.0f, 0.0f, 30.0f, 0.0f, 1.0f, 0.0f,
+            10.0f, 0.0f, -10.0f, 0.0f, 1.0f, 0.0f,
+            -10.0f, 0.0f, 30.0f, 0.0f, 1.0f, 0.0f,
+            40.0f, 0.0f, 30.0f, 0.0f, 1.0f, 0.0f,
+            40.0f, 0.0f, 45.0f, 0.0f, 1.0f, 0.0f,
+            -10.0f, 0.0f, 45.0f, 0.0f, 1.0f, 0.0f
+        }
     };
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(groundVertices), groundVertices, GL_STATIC_DRAW);
+    // Initial course setup
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * groundVertices[currentCourse].size(), groundVertices[currentCourse].data(), GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
@@ -178,56 +220,84 @@ void setupGround() {
     glBindVertexArray(0);
 }
 
-void setupWalls() {
+void setupWalls()
+{
     glGenVertexArrays(1, &wallVAO);
     glBindVertexArray(wallVAO);
 
     glGenBuffers(1, &wallVBO);
     glBindBuffer(GL_ARRAY_BUFFER, wallVBO);
 
-    // Murs autour du terrain en forme de L allongé
-    GLfloat wallVertices[] = {
-        // Murs de la section principale
-        -5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        -5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        -5.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        -5.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+    // Define wall vertices for multiple courses
+    std::vector<std::vector<GLfloat>> wallVertices = {
+        // Course 1
+        {
+            -5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 2.0f, 65.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 0.0f, 65.0f, 0.5f, 0.5f, 0.5f,
 
-        5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 2.0f, 20.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 0.0f, 20.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
 
-        // Murs de la section ajoutée pour former le L allongé
-        5.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        15.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        15.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
 
-        15.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        15.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        15.5f, 2.0f, 20.0f, 0.5f, 0.5f, 0.5f,
-        15.5f, 0.0f, 20.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 0.0f, 65.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 2.0f, 65.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 2.0f, 65.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 0.0f, 65.0f, 0.5f, 0.5f, 0.5f,
 
-        15.5f, 0.0f, 20.0f, 0.5f, 0.5f, 0.5f,
-        15.5f, 2.0f, 20.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 2.0f, 20.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 0.0f, 20.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            -5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
 
-        // Mur au début de la section principale
-        -5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 0.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
-        -5.5f, 2.0f, -5.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 2.0f, 65.0f, 0.5f, 0.5f, 0.5f,
+            65.5f, 0.0f, 65.0f, 0.5f, 0.5f, 0.5f
+        },
+        // Course 2
+        {
+            -10.0f, 0.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            -10.0f, 2.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            -10.0f, 2.0f, 45.0f, 0.5f, 0.5f, 0.5f,
+            -10.0f, 0.0f, 45.0f, 0.5f, 0.5f, 0.5f,
 
-        // Mur à la fin de la section principale
-        -5.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 0.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        5.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f,
-        -5.5f, 2.0f, 50.0f, 0.5f, 0.5f, 0.5f
+            10.0f, 0.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 2.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 2.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 0.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+
+            40.0f, 0.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+            40.0f, 2.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 2.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 0.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+
+            40.0f, 0.0f, 45.0f, 0.5f, 0.5f, 0.5f,
+            40.0f, 2.0f, 45.0f, 0.5f, 0.5f, 0.5f,
+            -10.0f, 2.0f, 45.0f, 0.5f, 0.5f, 0.5f,
+            -10.0f, 0.0f, 45.0f, 0.5f, 0.5f, 0.5f,
+
+            -10.0f, 0.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 0.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            10.0f, 2.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+            -10.0f, 2.0f, -10.0f, 0.5f, 0.5f, 0.5f,
+
+            40.0f, 0.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+            40.0f, 2.0f, 30.0f, 0.5f, 0.5f, 0.5f,
+            40.0f, 2.0f, 45.0f, 0.5f, 0.5f, 0.5f,
+            40.0f, 0.0f, 45.0f, 0.5f, 0.5f, 0.5f
+        }
     };
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertices), wallVertices, GL_STATIC_DRAW);
+    // Initial course setup
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * wallVertices[currentCourse].size(), wallVertices[currentCourse].data(), GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
@@ -238,8 +308,8 @@ void setupWalls() {
     glBindVertexArray(0);
 }
 
-
-void setupCircle() {
+void setupCircle()
+{
     glGenVertexArrays(1, &circleVAO);
     glBindVertexArray(circleVAO);
 
@@ -256,7 +326,8 @@ void setupCircle() {
     circleVertices.push_back(0.0f);
     circleVertices.push_back(0.0f);
 
-    for (int i = 0; i <= circleSegments; ++i) {
+    for (int i = 0; i <= circleSegments; ++i)
+    {
         float angle = i * 2 * glm::pi<float>() / circleSegments;
         float x = circleRadius * cosf(angle);
         float z = circleRadius * sinf(angle);
@@ -274,20 +345,22 @@ void setupCircle() {
     glBindVertexArray(0);
 }
 
-void setupPowerGauge() {
+void setupPowerGauge()
+{
     glGenVertexArrays(1, &powerGaugeVAO);
     glBindVertexArray(powerGaugeVAO);
 
     glGenBuffers(1, &powerGaugeVBO);
     glBindBuffer(GL_ARRAY_BUFFER, powerGaugeVBO);
 
-    // Initial vertices for the power gauge (position and color)
-    GLfloat powerGaugeVertices[] = {
-        // Positions            // Colors
-        0.0f, 0.0f, 0.0f,      1.0f, 1.0f, 1.0f,  // Bottom-left
-        0.0f, 20.0f, 0.0f,     1.0f, 1.0f, 1.0f,  // Top-left
-        100.0f, 20.0f, 0.0f,   1.0f, 1.0f, 1.0f,  // Top-right
-        100.0f, 0.0f, 0.0f,    1.0f, 1.0f, 1.0f   // Bottom-right
+    // Adjusted dimensions for the power gauge (repositioned away from the right edge)
+    GLfloat powerGaugeVertices[] =
+    {
+        // Positions                // Colors
+         600.0f, 550.0f, 0.0f,      1.0f, 1.0f, 1.0f,  // Bottom-left
+         600.0f, 580.0f, 0.0f,      1.0f, 1.0f, 1.0f,  // Top-left
+         750.0f, 580.0f, 0.0f,      1.0f, 1.0f, 1.0f,  // Top-right
+         750.0f, 550.0f, 0.0f,      1.0f, 1.0f, 1.0f   // Bottom-right
     };
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(powerGaugeVertices), powerGaugeVertices, GL_DYNAMIC_DRAW);
@@ -301,7 +374,8 @@ void setupPowerGauge() {
     glBindVertexArray(0);
 }
 
-void setupCylinder() {
+void setupCylinder()
+{
     const int cylinderSegments = 36;
     const float cylinderRadius = 0.1f;
     const float cylinderHeight = 7.0f;
@@ -309,7 +383,8 @@ void setupCylinder() {
     std::vector<GLfloat> cylinderVertices;
     std::vector<GLuint> cylinderIndices;
 
-    for (int i = 0; i <= cylinderSegments; ++i) {
+    for (int i = 0; i <= cylinderSegments; ++i)
+    {
         float angle = i * 2 * glm::pi<float>() / cylinderSegments;
         float x = cylinderRadius * cosf(angle);
         float z = cylinderRadius * sinf(angle);
@@ -325,7 +400,8 @@ void setupCylinder() {
         cylinderVertices.push_back(z);
     }
 
-    for (int i = 0; i < cylinderSegments * 2; i += 2) {
+    for (int i = 0; i < cylinderSegments * 2; i += 2)
+    {
         cylinderIndices.push_back(i);
         cylinderIndices.push_back(i + 1);
         cylinderIndices.push_back((i + 2) % (cylinderSegments * 2));
@@ -352,19 +428,49 @@ void setupCylinder() {
     glBindVertexArray(0);
 }
 
-GLuint loadShaders(const char* vertex_file_path, const char* fragment_file_path) {
+void setupFlag()
+{
+    glGenVertexArrays(1, &flagVAO);
+    glBindVertexArray(flagVAO);
+
+    glGenBuffers(1, &flagVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, flagVBO);
+
+    // Define flag vertices (larger and aligned red triangle on the left side)
+    GLfloat flagVertices[] = {
+        // Positions                // Colors
+        0.0f, 7.0f, 0.0f,          1.0f, 0.0f, 0.0f,  // Bottom-left
+        0.0f, 6.0f, 0.0f,          1.0f, 0.0f, 0.0f,  // Bottom-right
+        1.5f, 6.5f, 0.0f,         1.0f, 0.0f, 0.0f   // Top
+    };
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(flagVertices), flagVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+
+    glBindVertexArray(0);
+}
+
+GLuint loadShaders(const char* vertex_file_path, const char* fragment_file_path)
+{
     GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
     GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 
     std::string VertexShaderCode;
     std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-    if (VertexShaderStream.is_open()) {
+    if (VertexShaderStream.is_open())
+    {
         std::stringstream sstr;
         sstr << VertexShaderStream.rdbuf();
         VertexShaderCode = sstr.str();
         VertexShaderStream.close();
     }
-    else {
+    else
+    {
         std::cerr << "Impossible to open " << vertex_file_path << ". Are you in the right directory ?" << std::endl;
         getchar();
         return 0;
@@ -372,7 +478,8 @@ GLuint loadShaders(const char* vertex_file_path, const char* fragment_file_path)
 
     std::string FragmentShaderCode;
     std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-    if (FragmentShaderStream.is_open()) {
+    if (FragmentShaderStream.is_open())
+    {
         std::stringstream sstr;
         sstr << FragmentShaderStream.rdbuf();
         FragmentShaderCode = sstr.str();
@@ -382,27 +489,29 @@ GLuint loadShaders(const char* vertex_file_path, const char* fragment_file_path)
     GLint Result = GL_FALSE;
     int InfoLogLength;
 
-    std::cout << "Compiling shader : " << vertex_file_path << std::endl;
+    std::cout << "Compiling shader: " << vertex_file_path << std::endl;
     char const* VertexSourcePointer = VertexShaderCode.c_str();
     glShaderSource(VertexShaderID, 1, &VertexSourcePointer, NULL);
     glCompileShader(VertexShaderID);
 
     glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
     glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if (InfoLogLength > 0) {
+    if (InfoLogLength > 0)
+    {
         std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
         glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
         std::cerr << &VertexShaderErrorMessage[0] << std::endl;
     }
 
-    std::cout << "Compiling shader : " << fragment_file_path << std::endl;
+    std::cout << "Compiling shader: " << fragment_file_path << std::endl;
     char const* FragmentSourcePointer = FragmentShaderCode.c_str();
     glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer, NULL);
     glCompileShader(FragmentShaderID);
 
     glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
     glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if (InfoLogLength > 0) {
+    if (InfoLogLength > 0)
+    {
         std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
         glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
         std::cerr << &FragmentShaderErrorMessage[0] << std::endl;
@@ -416,7 +525,8 @@ GLuint loadShaders(const char* vertex_file_path, const char* fragment_file_path)
 
     glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
     glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    if (InfoLogLength > 0) {
+    if (InfoLogLength > 0)
+    {
         std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
         glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
         std::cerr << &ProgramErrorMessage[0] << std::endl;
@@ -432,13 +542,15 @@ GLuint loadShaders(const char* vertex_file_path, const char* fragment_file_path)
 }
 
 bool init() {
-    if (!glfwInit()) {
+    if (!glfwInit())
+    {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         return false;
     }
 
     window = glfwCreateWindow(1080, 720, "Golf 3D", NULL, NULL);
-    if (!window) {
+    if (!window)
+    {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return false;
@@ -453,7 +565,8 @@ bool init() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     GLenum err = glewInit();
-    if (err != GLEW_OK) {
+    if (err != GLEW_OK)
+    {
         std::cerr << "Failed to initialize GLEW" << std::endl;
         return false;
     }
@@ -467,6 +580,7 @@ bool init() {
     setupCylinder();
     setupCircle();
     setupPowerGauge();
+    setupFlag(); // Add this line
 
     shaderProgram = loadShaders("vertex_shader.glsl", "fragment_shader.glsl");
     circleShaderProgram = loadShaders("circle_vertex_shader.glsl", "circle_fragment_shader.glsl");
@@ -475,26 +589,37 @@ bool init() {
     return true;
 }
 
-void updatePowerGauge(float powerRatio) {
+
+void updatePowerGauge(float powerRatio)
+{
     glBindVertexArray(powerGaugeVAO);
 
     // Calculate color based on power ratio
     glm::vec3 color;
-    if (powerRatio < 0.25f)
-        color = glm::mix(glm::vec3(1.0f), glm::vec3(0.0f, 1.0f, 0.0f), powerRatio * 4.0f);  // White to Green
-    else if (powerRatio < 0.5f)
-        color = glm::mix(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), (powerRatio - 0.25f) * 4.0f);  // Green to Yellow
-    else if (powerRatio < 0.75f)
-        color = glm::mix(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 0.5f, 0.0f), (powerRatio - 0.5f) * 4.0f);  // Yellow to Orange
+    double currentTime = glfwGetTime();
+    if (currentTime - lastShotTime < shotCooldown)
+    {
+        color = glm::vec3(0.5f, 0.5f, 0.5f); // Grey color during cooldown
+    }
     else
-        color = glm::mix(glm::vec3(1.0f, 0.5f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), (powerRatio - 0.75f) * 4.0f);  // Orange to Red
+    {
+        if (powerRatio < 0.25f)
+            color = glm::mix(glm::vec3(1.0f), glm::vec3(0.0f, 1.0f, 0.0f), powerRatio * 4.0f);  // White to Green
+        else if (powerRatio < 0.5f)
+            color = glm::mix(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), (powerRatio - 0.25f) * 4.0f);  // Green to Yellow
+        else if (powerRatio < 0.75f)
+            color = glm::mix(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 0.5f, 0.0f), (powerRatio - 0.5f) * 4.0f);  // Yellow to Orange
+        else
+            color = glm::mix(glm::vec3(1.0f, 0.5f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), (powerRatio - 0.75f) * 4.0f);  // Orange to Red
+    }
 
-    GLfloat powerGaugeVertices[] = {
-        // Positions                // Colors
-         690.0f, 570.0f, 0.0f,      color.r, color.g, color.b,  // Bottom-left
-         690.0f, 590.0f, 0.0f,      color.r, color.g, color.b,  // Top-left
-         790.0f, 590.0f, 0.0f,      color.r, color.g, color.b,  // Top-right
-         790.0f, 570.0f, 0.0f,      color.r, color.g, color.b   // Bottom-right
+    GLfloat powerGaugeVertices[] =
+    {
+        // Positions              // Colors
+         600.0f, 550.0f, 0.0f,     color.r, color.g, color.b,  // Bottom-left
+         600.0f, 580.0f, 0.0f,     color.r, color.g, color.b,  // Top-left
+         750.0f, 580.0f, 0.0f,     color.r, color.g, color.b,  // Top-right
+         750.0f, 550.0f, 0.0f,     color.r, color.g, color.b   // Bottom-right
     };
 
     glBindBuffer(GL_ARRAY_BUFFER, powerGaugeVBO);
@@ -503,7 +628,8 @@ void updatePowerGauge(float powerRatio) {
     glBindVertexArray(0);
 }
 
-void drawPowerGauge() {
+void drawPowerGauge()
+{
     glUseProgram(gaugeShaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -525,7 +651,8 @@ void drawPowerGauge() {
     glUseProgram(0);
 }
 
-void drawSphere() {
+void drawSphere()
+{
     glUseProgram(shaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -551,7 +678,8 @@ void drawSphere() {
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(sphereVAO);
-    for (int i = 0; i < stackCount; ++i) {
+    for (int i = 0; i < stackCount; ++i)
+    {
         int k1 = i * (sectorCount + 1);
         int k2 = k1 + sectorCount + 1;
 
@@ -572,7 +700,8 @@ void drawSphere() {
     glUseProgram(0);
 }
 
-void drawGround() {
+void drawGround()
+{
     glUseProgram(shaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -596,13 +725,14 @@ void drawGround() {
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(groundVAO);
-    glDrawArrays(GL_QUADS, 0, 8); // Mise à jour du nombre de sommets
+    glDrawArrays(GL_QUADS, 0, 8); // Update number of vertices
     glBindVertexArray(0);
 
     glUseProgram(0);
 }
 
-void drawWalls() {
+void drawWalls()
+{
     glUseProgram(shaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -626,18 +756,19 @@ void drawWalls() {
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     glBindVertexArray(wallVAO);
-    glDrawArrays(GL_QUADS, 0, 28); // Mise à jour du nombre de sommets
+    glDrawArrays(GL_QUADS, 0, 28); // Update number of vertices
     glBindVertexArray(0);
 
     glUseProgram(0);
 }
 
-
-void drawCircle() {
+void drawCircle()
+{
     glUseProgram(circleShaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(10.0f, 0.02f, 40.0f)); // Rapprocher le cercle du centre
+    glm::vec3 holePosition = currentCourse == 0 ? glm::vec3(60.0f, 0.02f, 60.0f) : glm::vec3(35.0f, 0.02f, 37.5f);
+    model = glm::translate(model, holePosition);
 
     GLuint modelLoc = glGetUniformLocation(circleShaderProgram, "model");
     GLuint viewLoc = glGetUniformLocation(circleShaderProgram, "view");
@@ -665,11 +796,13 @@ void drawCircle() {
     glUseProgram(0);
 }
 
-void drawCylinder() {
+void drawCylinder()
+{
     glUseProgram(shaderProgram);
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(10.0f, 0.0f, 40.0f)); // Position cylinder in the center of circle
+    glm::vec3 cylinderPosition = currentCourse == 0 ? glm::vec3(60.0f, 0.0f, 60.0f) : glm::vec3(35.0f, 0.0f, 37.5f);
+    model = glm::translate(model, cylinderPosition);
 
     GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
     GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
@@ -690,112 +823,219 @@ void drawCylinder() {
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
+    // Draw the cylinder
     glBindVertexArray(cylinderVAO);
     glDrawElements(GL_TRIANGLES, 36 * 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    // Draw the flag
+    glBindVertexArray(flagVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
 
     glUseProgram(0);
 }
 
-bool checkHoleCollision() {
-    const float holeRadius = 1.5f;
-    glm::vec3 holePosition(10.0f, 0.0f, 40.0f); // Rapprocher le trou du centre
+
+bool checkHoleCollision()
+{
+    float holeRadius = 1.5f;
+    glm::vec3 holePosition = currentCourse == 0 ? glm::vec3(60.0f, 0.0f, 60.0f) : glm::vec3(35.0f, 0.0f, 37.5f);
 
     float distance = glm::distance(spherePosition, holePosition);
-    if (distance < holeRadius) {
-        std::cout << "Parcours termine !" << std::endl;
+    if (distance < holeRadius)
+    {
+        std::cout << "Course completed!" << std::endl;
+        lastShotTime = glfwGetTime() - shotCooldown; // Reset shot cooldown
+        levelTransition = true;
+        endTime = glfwGetTime();
         return true;
     }
     return false;
 }
 
-void checkSphereBounds() {
-    // Vérifiez les collisions avec les murs supplémentaires au début de la section principale
-    if (spherePosition.z <= -5.0f + radius && (spherePosition.x >= -5.5f + radius && spherePosition.x <= 5.5f - radius)) {
-        spherePosition.z = -5.0f + radius; // Repositionner la sphère
+
+void checkSphereBounds()
+{
+    // Define boundaries for each course
+    std::vector<std::vector<float>> boundaries = {
+        // Course 1
+        { -5.5f, 5.5f, 65.5f, -5.0f, 50.0f, 65.0f },
+        // Course 2
+        { -10.0f, 10.0f, 40.0f, -10.0f, 30.0f, 45.0f }
+    };
+
+    auto& bounds = boundaries[currentCourse];
+
+    // Check for collisions with the side walls of the main section
+    if (spherePosition.x <= bounds[0] + radius && (spherePosition.z >= bounds[3] + radius && spherePosition.z <= bounds[4] - radius))
+    {
+        spherePosition.x = bounds[0] + radius; // Reposition the sphere
+        sphereVelocity.x *= -dampingFactor;
+        if (std::abs(sphereVelocity.x) < minBounceSpeed)
+        {
+            sphereVelocity.x = 0.0f;
+        }
+    }
+    else if (spherePosition.x >= bounds[1] - radius && (spherePosition.z >= bounds[3] + radius && spherePosition.z <= bounds[4] - radius))
+    {
+        spherePosition.x = bounds[1] - radius; // Reposition the sphere
+        sphereVelocity.x *= -dampingFactor;
+        if (std::abs(sphereVelocity.x) < minBounceSpeed)
+        {
+            sphereVelocity.x = 0.0f;
+        }
+    }
+
+    // Check for collisions with the walls of the section added to form the extended L-shape
+    if (spherePosition.x >= bounds[2] - radius && (spherePosition.z >= bounds[4] + radius && spherePosition.z <= bounds[5] - radius))
+    {
+        spherePosition.x = bounds[2] - radius; // Reposition the sphere
+        sphereVelocity.x *= -dampingFactor;
+        if (std::abs(sphereVelocity.x) < minBounceSpeed)
+        {
+            sphereVelocity.x = 0.0f;
+        }
+    }
+
+    if (spherePosition.z >= bounds[5] - radius && (spherePosition.x >= bounds[0] + radius && spherePosition.x <= bounds[2] - radius))
+    {
+        spherePosition.z = bounds[5] - radius; // Reposition the sphere
         sphereVelocity.z *= -dampingFactor;
-        if (std::abs(sphereVelocity.z) < minBounceSpeed) {
+        if (std::abs(sphereVelocity.z) < minBounceSpeed)
+        {
             sphereVelocity.z = 0.0f;
         }
     }
 
-    // Vérifiez les collisions avec les murs supplémentaires à la fin de la section principale
-    if (spherePosition.z >= 50.0f - radius && (spherePosition.x >= -5.5f + radius && spherePosition.x <= 5.5f - radius)) {
-        spherePosition.z = 50.0f - radius; // Repositionner la sphère
+    // Check for collisions with the side walls of the added section (horizontal part)
+    if (spherePosition.z >= bounds[4] && (spherePosition.x <= bounds[0] + radius))
+    {
+        spherePosition.x = bounds[0] + radius; // Reposition the sphere
+        sphereVelocity.x *= -dampingFactor;
+        if (std::abs(sphereVelocity.x) < minBounceSpeed)
+        {
+            sphereVelocity.x = 0.0f;
+        }
+    }
+    else if (spherePosition.z >= bounds[4] && (spherePosition.x >= bounds[2] - radius))
+    {
+        spherePosition.x = bounds[2] - radius; // Reposition the sphere
+        sphereVelocity.x *= -dampingFactor;
+        if (std::abs(sphereVelocity.x) < minBounceSpeed)
+        {
+            sphereVelocity.x = 0.0f;
+        }
+    }
+
+    // Check for collisions with the walls at the beginning of the main section
+    if (spherePosition.z <= bounds[3] + radius)
+    {
+        spherePosition.z = bounds[3] + radius; // Reposition the sphere
         sphereVelocity.z *= -dampingFactor;
-        if (std::abs(sphereVelocity.z) < minBounceSpeed) {
+        if (std::abs(sphereVelocity.z) < minBounceSpeed)
+        {
             sphereVelocity.z = 0.0f;
-        }
-    }
-
-    // Vérifiez les collisions avec les murs latéraux de la section principale
-    if (spherePosition.x <= -5.5f + radius && (spherePosition.z >= -5.0f + radius && spherePosition.z <= 50.0f - radius)) {
-        spherePosition.x = -5.5f + radius; // Repositionner la sphère
-        sphereVelocity.x *= -dampingFactor;
-        if (std::abs(sphereVelocity.x) < minBounceSpeed) {
-            sphereVelocity.x = 0.0f;
-        }
-    }
-    else if (spherePosition.x >= 5.5f - radius && (spherePosition.z >= -5.0f + radius && spherePosition.z <= 20.0f - radius)) {
-        spherePosition.x = 5.5f - radius; // Repositionner la sphère
-        sphereVelocity.x *= -dampingFactor;
-        if (std::abs(sphereVelocity.x) < minBounceSpeed) {
-            sphereVelocity.x = 0.0f;
-        }
-    }
-
-    // Vérifiez les collisions avec les murs latéraux de la section ajoutée (partie allongée)
-    if (spherePosition.x >= 15.5f - radius && spherePosition.z >= 20.0f) {
-        spherePosition.x = 15.5f - radius; // Repositionner la sphère
-        sphereVelocity.x *= -dampingFactor;
-        if (std::abs(sphereVelocity.x) < minBounceSpeed) {
-            sphereVelocity.x = 0.0f;
-        }
-    }
-
-    // Vérifiez les collisions avec les murs de la section allongée (partie horizontale)
-    if (spherePosition.z >= 20.0f && (spherePosition.x >= 5.5f + radius && spherePosition.x <= 15.5f - radius)) {
-        if (spherePosition.z >= 50.0f - radius) {
-            spherePosition.z = 50.0f - radius; // Repositionner la sphère
-            sphereVelocity.z *= -dampingFactor;
-            if (std::abs(sphereVelocity.z) < minBounceSpeed) {
-                sphereVelocity.z = 0.0f;
-            }
         }
     }
 }
 
+void drawTrail()
+{
+    glUseProgram(shaderProgram);
 
+    for (size_t i = 0; i < trailPositions.size(); ++i) 
+    {
+        glm::vec3 position = trailPositions[i];
+        float scale = 0.5f * (float)i / maxTrailLength; // Larger spheres for newer positions, smaller for older
+        glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f - (float)i / maxTrailLength); // Fade the color
 
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, position);
+        model = glm::scale(model, glm::vec3(scale));
 
-void draw() {
+        GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
+        GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
+        GLuint projLoc = glGetUniformLocation(shaderProgram, "projection");
+
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
+
+        glm::vec3 cameraPosition = spherePosition + glm::vec3(
+            zoom * cos(angleX) * sin(angleY),
+            zoom * sin(angleX) + 2.0f,
+            zoom * cos(angleX) * cos(angleY)
+        );
+        glm::mat4 view = glm::lookAt(cameraPosition, spherePosition, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+        // Set the color
+        GLuint colorLoc = glGetUniformLocation(shaderProgram, "color");
+        glUniform4fv(colorLoc, 1, glm::value_ptr(color));
+
+        glBindVertexArray(sphereVAO);
+        for (int j = 0; j < stackCount; ++j) 
+        {
+            int k1 = j * (sectorCount + 1);
+            int k2 = k1 + sectorCount + 1;
+
+            glBegin(GL_TRIANGLE_STRIP);
+            for (int l = 0; l < sectorCount; ++l, ++k1, ++k2) 
+            {
+                glArrayElement(k1);
+                glArrayElement(k2);
+                glArrayElement(k1 + 1);
+
+                glArrayElement(k1 + 1);
+                glArrayElement(k2);
+                glArrayElement(k2 + 1);
+            }
+            glEnd();
+        }
+        glBindVertexArray(0);
+    }
+
+    glUseProgram(0);
+}
+
+void draw()
+{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Update trail positions
+    if (trailPositions.size() >= maxTrailLength)
+    {
+        trailPositions.erase(trailPositions.begin()); // Remove the oldest position if we exceed the max trail length
+    }
+    trailPositions.push_back(spherePosition); // Add the current position to the trail
 
     drawGround();
     drawWalls();
+    drawTrail(); // Draw the trail before drawing the sphere
     drawCircle();
     drawCylinder();
 
-    for (int i = 0; i < subSteps; ++i) {
+    for (int i = 0; i < subSteps; ++i)
+    {
         spherePosition.y += sphereVelocity.y / subSteps;
         spherePosition.x += sphereVelocity.x / subSteps;
         spherePosition.z += sphereVelocity.z / subSteps;
 
-        sphereVelocity *= pow(friction, 1.0f / subSteps); // Appliquer la friction par sous-étape
+        sphereVelocity *= pow(friction, 1.0f / subSteps); // Apply friction per sub-step
 
         sphereVelocity.y -= gravity / subSteps;
 
         // Check if the sphere is above the ground
-        if (spherePosition.y <= radius) {
-            if (spherePosition.x >= -5.5f + radius && spherePosition.x <= 15.5f - radius && spherePosition.z >= -5.0f + radius && spherePosition.z <= 50.0f - radius) {
-                spherePosition.y = radius;
-                sphereVelocity.y *= -dampingFactor;
-                if (std::abs(sphereVelocity.y) < minBounceSpeed) {
-                    sphereVelocity.y = 0.0f;
-                }
-            }
-            else {
-                spherePosition.y = radius; // Keep sphere above the ground if out of bounds
+        if (spherePosition.y <= radius)
+        {
+            spherePosition.y = radius;
+            sphereVelocity.y *= -dampingFactor;
+            if (std::abs(sphereVelocity.y) < minBounceSpeed)
+            {
                 sphereVelocity.y = 0.0f;
             }
         }
@@ -805,18 +1045,30 @@ void draw() {
     }
 
     // Check if the sphere entered the hole
-    if (checkHoleCollision()) {
-        if (!showEndText) {
-            endTime = glfwGetTime();
-            showEndText = true;
-        }
+    if (checkHoleCollision())
+    {
         sphereVelocity = glm::vec3(0.0f, 0.0f, 0.0f);
     }
 
     drawSphere();
     drawPowerGauge();
 
-    if (showEndText && glfwGetTime() - endTime > 3.0) { // Wait for 3 seconds
+    if (levelTransition && glfwGetTime() - endTime > levelTransitionDelay)
+    {
+        // Wait for the transition delay
+        levelTransition = false;
+        currentCourse = (currentCourse + 1) % 2; // Move to the next course
+        initialSpherePosition = currentCourse == 0 ? glm::vec3(0.0f, radius, 0.0f) : glm::vec3(-5.0f, radius, -5.0f);
+        spherePosition = initialSpherePosition;
+        trailPositions.clear(); // Clear the trail
+        setupGround(); // Reload ground for the new course
+        setupWalls(); // Reload walls for the new course
+        showEndText = false;
+    }
+
+    if (showEndText && glfwGetTime() - endTime > 3.0)
+    {
+        // Wait for 3 seconds
         spherePosition = initialSpherePosition;
         sphereVelocity = glm::vec3(0.0f, 0.0f, 0.0f);
         showEndText = false;
@@ -827,19 +1079,21 @@ void draw() {
 
 
 
-
-int main() {
+int main()
+{
     if (!init())
         return -1;
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window))
+    {
         double currentTime = glfwGetTime();
         double deltaTime = currentTime - lastTime;
         lastTime = currentTime;
 
         glfwPollEvents();
 
-        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        {
             keyPressDuration += deltaTime;
             keyPressDuration = std::min(keyPressDuration, maxKeyPressDuration);
         }
