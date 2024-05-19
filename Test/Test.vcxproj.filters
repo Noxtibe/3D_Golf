@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{e7e7dd83-5f9d-4401-b565-8eafafdc72f1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -34,35 +37,64 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fragment_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+    <None Include="ball_fragment_shader.glsl">
+      <Filter>shaders</Filter>
     </None>
-    <None Include="vertex_shader.glsl">
-      <Filter>Fichiers sources</Filter>
-    </None>
-    <None Include="text_vertex_shader.glsl">
-      <Filter>Fichiers sources</Filter>
-    </None>
-    <None Include="text_fragment_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+    <None Include="ball_vertex_shader.glsl">
+      <Filter>shaders</Filter>
     </None>
     <None Include="circle_fragment_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+      <Filter>shaders</Filter>
     </None>
     <None Include="circle_vertex_shader.glsl">
-      <Filter>Fichiers sources</Filter>
-    </None>
-    <None Include="cursor_vertex_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+      <Filter>shaders</Filter>
     </None>
     <None Include="cursor_fragment_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+      <Filter>shaders</Filter>
     </None>
-    <None Include="gauge_vertex_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+    <None Include="cursor_vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="flag_fragment_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="flag_vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="fragment_shader.glsl">
+      <Filter>shaders</Filter>
     </None>
     <None Include="gauge_fragment_shader.glsl">
-      <Filter>Fichiers sources</Filter>
+      <Filter>shaders</Filter>
     </None>
+    <None Include="gauge_vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="text_fragment_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="text_vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="pole_vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="pole_fragment_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="trail_vertex_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="trail_fragment_shader.glsl">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="arial.ttf">
+      <Filter>Fichiers sources</Filter>
+    </Font>
   </ItemGroup>
 </Project>

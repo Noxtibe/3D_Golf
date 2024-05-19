@@ -144,16 +144,27 @@
     <ClInclude Include="sphere.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ball_fragment_shader.glsl" />
+    <None Include="ball_vertex_shader.glsl" />
     <None Include="circle_fragment_shader.glsl" />
     <None Include="circle_vertex_shader.glsl" />
     <None Include="cursor_fragment_shader.glsl" />
     <None Include="cursor_vertex_shader.glsl" />
+    <None Include="flag_fragment_shader.glsl" />
+    <None Include="flag_vertex_shader.glsl" />
     <None Include="gauge_fragment_shader.glsl" />
     <None Include="gauge_vertex_shader.glsl" />
+    <None Include="pole_fragment_shader.glsl" />
+    <None Include="pole_vertex_shader.glsl" />
     <None Include="text_fragment_shader.glsl" />
     <None Include="text_vertex_shader.glsl" />
+    <None Include="trail_fragment_shader.glsl" />
+    <None Include="trail_vertex_shader.glsl" />
     <None Include="vertex_shader.glsl" />
     <None Include="fragment_shader.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="arial.ttf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
